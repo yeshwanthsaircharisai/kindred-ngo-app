@@ -101,8 +101,11 @@ const styles = StyleSheet.create({
     height: 71,
   },
   background: {
+    borderRadius: 40,
     width: 128,
     height: 128,
     position: 'absolute',
+    overflow: 'hidden',
   },
 });
+
