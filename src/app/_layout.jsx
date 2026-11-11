@@ -1,23 +1,30 @@
-import React, { useEffect } from 'react';
+
+import { useEffect } from 'react';
+
 import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { SocialAppProvider } from '@/context/SocialAppContext';
+import * as SplashScreen from 'expo-splash-screen';
 
-SplashScreen.preventAutoHideAsync();
+import { AuthProvider } from '@/context/AuthContext';
+import SocialAppProvider from '@/context/SocialAppContext';
 
-export default function RootLayout() {
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+function AppNavigator() {
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
   }, []);
 
   return (
-    <SocialAppProvider>
+    <>
       <StatusBar style="dark" />
+
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#F4F6F4' },
+          contentStyle: {
+            backgroundColor: '#F4F6F4',
+          },
           animation: 'fade',
         }}
       >
@@ -26,11 +33,22 @@ export default function RootLayout() {
         <Stack.Screen name="login" />
         <Stack.Screen name="signup" />
         <Stack.Screen name="forgot-password" />
+        <Stack.Screen name="reset-password" />
         <Stack.Screen name="main" />
         <Stack.Screen name="chat" />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="design-system" />
       </Stack>
-    </SocialAppProvider>
+    </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <SocialAppProvider>
+        <AppNavigator />
+      </SocialAppProvider>
+    </AuthProvider>
   );
 }

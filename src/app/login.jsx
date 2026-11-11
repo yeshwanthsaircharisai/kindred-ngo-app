@@ -1,18 +1,29 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Pressable, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+
+import { AppButton, AppCheckbox, AppInput, AppScreen, AppText } from '@/components/ui';
 import colors from '@/constants/colors';
 import { borderRadius, layout, spacing } from '@/constants/spacing';
-import { AppScreen, AppText, AppButton, AppInput, AppCheckbox } from '@/components/ui';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
-
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
   const validate = () => {
     const newErrors = {};
@@ -34,9 +45,21 @@ export default function LoginScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleLogin = () => {
-    if (validate()) {
+  const handleLogin = async () => {
+    if (submitting || !validate()) return;
+
+    setSubmitting(true);
+
+    try {
+      await login(email.trim(), password);
       router.replace('/main');
+    } catch (error) {
+      Alert.alert(
+        'Login Failed',
+        error?.message || 'Unable to log in. Please try again.'
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -50,7 +73,6 @@ export default function LoginScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header branding */}
           <View style={styles.header}>
             <View style={styles.logoBadge}>
               <AppText variant="largeHeading" color={colors.white} weight="700">
@@ -65,7 +87,6 @@ export default function LoginScreen() {
             </AppText>
           </View>
 
-          {/* Form */}
           <View style={styles.form}>
             <AppInput
               label="Email address"
@@ -93,7 +114,6 @@ export default function LoginScreen() {
               showPasswordToggle
             />
 
-            {/* Remember me & Forgot Password */}
             <View style={styles.rowBetween}>
               <AppCheckbox
                 checked={rememberMe}
@@ -113,9 +133,8 @@ export default function LoginScreen() {
               </Pressable>
             </View>
 
-            {/* Login Button */}
             <AppButton
-              title="Log In"
+              title={submitting ? 'Logging in...' : 'Log In'}
               variant="primary"
               size="lg"
               onPress={handleLogin}
@@ -123,7 +142,6 @@ export default function LoginScreen() {
               style={styles.submitButton}
             />
 
-            {/* Switch to Signup */}
             <View style={styles.footerRow}>
               <AppText variant="secondary" color={colors.secondaryText}>
                 Don't have an account?{' '}
@@ -192,4 +210,3 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
-

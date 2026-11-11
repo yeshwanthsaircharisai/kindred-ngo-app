@@ -1,20 +1,37 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Pressable, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
+
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
 import colors from '@/constants/colors';
 import { borderRadius, layout, spacing } from '@/constants/spacing';
-import { AppScreen, AppText, AppButton, AppInput, AppCheckbox } from '@/components/ui';
+import {
+  AppButton,
+  AppCheckbox,
+  AppInput,
+  AppScreen,
+  AppText,
+} from '@/components/ui';
 
 export default function SignupScreen() {
   const router = useRouter();
+  const { signup } = useAuth();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
-
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
   const validate = () => {
     const newErrors = {};
@@ -51,18 +68,42 @@ export default function SignupScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSignup = () => {
-  console.log('Create Account button pressed');
-  if (validate()) {
-    Alert.alert(
-      'Registration',
-      'Registration UI is working. Account creation will be available after Supabase integration.',
-      [{ text: 'OK' }]
-    );
-  } else {
-    console.log('Validation failed', errors);
-  }
-}
+  const handleSignup = async () => {
+    if (submitting || !validate()) return;
+
+    setSubmitting(true);
+
+    try {
+      const data = await signup(email.trim(), password, fullName.trim());
+
+      if (data?.user && !data.session) {
+        Alert.alert(
+          'Verify Your Email',
+          'Your account has been created. Please check your email and verify your account before logging in.',
+          [{ text: 'OK', onPress: () => router.replace('/login') }]
+        );
+      } else if (data?.user && data?.session) {
+        Alert.alert(
+          'Account Created',
+          'Your Kindred account has been created successfully.',
+          [{ text: 'Continue', onPress: () => router.replace('/main') }]
+        );
+      } else {
+        Alert.alert(
+          'Registration',
+          'Please check your email for further instructions.',
+          [{ text: 'OK', onPress: () => router.replace('/login') }]
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Signup Failed',
+        error?.message || 'Unable to create your account. Please try again.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <AppScreen safe padding={false} backgroundColor={colors.background}>
@@ -74,7 +115,6 @@ export default function SignupScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header */}
           <View style={styles.header}>
             <View style={styles.logoBadge}>
               <AppText variant="largeHeading" color={colors.white} weight="700">
@@ -89,7 +129,6 @@ export default function SignupScreen() {
             </AppText>
           </View>
 
-          {/* Form */}
           <View style={styles.form}>
             <AppInput
               label="Full Name"
@@ -142,7 +181,6 @@ export default function SignupScreen() {
               showPasswordToggle
             />
 
-            {/* Terms checkbox */}
             <AppCheckbox
               checked={agreeTerms}
               onToggle={(checked) => {
@@ -161,9 +199,8 @@ export default function SignupScreen() {
               style={{ marginTop: spacing.xs, marginBottom: spacing.lg }}
             />
 
-            {/* Create Account button */}
             <AppButton
-              title="Create Account"
+              title={submitting ? 'Creating Account...' : 'Create Account'}
               variant="primary"
               size="lg"
               onPress={handleSignup}
@@ -171,7 +208,6 @@ export default function SignupScreen() {
               style={styles.submitButton}
             />
 
-            {/* Switch to Login */}
             <View style={styles.footerRow}>
               <AppText variant="secondary" color={colors.secondaryText}>
                 Already have an account?{' '}
@@ -234,4 +270,3 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
 });
-

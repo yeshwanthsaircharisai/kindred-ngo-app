@@ -46,3 +46,17 @@ example
 .env
 .env.*
 !.env.example
+
+# Python virtual environment
+image-similarity-ai/.venv/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Python generated files
+*.egg-info/
+
+# Backup files
+*.backup.jsx
+*.bak

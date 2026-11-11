@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import colors from '@/constants/colors';
@@ -7,14 +8,21 @@ import { AppScreen, AppText } from '@/components/ui';
 
 export default function SplashScreenComponent() {
   const router = useRouter();
+  const { session, loading } = useAuth();
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      router.replace('/onboarding');
-    }, 2000);
+  if (loading) return;
 
-    return () => clearTimeout(timer);
-  }, [router]);
+  const timer = setTimeout(() => {
+    if (session) {
+      router.replace('/main');
+    } else {
+      router.replace('/onboarding');
+    }
+  }, 2000);
+
+  return () => clearTimeout(timer);
+}, [loading, session, router]);
 
   return (
     <AppScreen safe padding={false} backgroundColor={colors.background}>

@@ -1,34 +1,65 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Pressable, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+
+import { AppButton, AppInput, AppScreen, AppText } from '@/components/ui';
 import colors from '@/constants/colors';
-import { borderRadius, layout, spacing } from '@/constants/spacing';
-import { AppScreen, AppText, AppButton, AppInput } from '@/components/ui';
+import { layout, spacing } from '@/constants/spacing';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
+  const { resetPassword } = useAuth();
 
   const [email, setEmail] = useState('');
   const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const validate = () => {
     const emailTrimmed = email.trim();
+
     if (!emailTrimmed) {
       setError('Email address is required');
       return false;
     }
+
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) {
       setError('Please enter a valid email address');
       return false;
     }
+
     setError(null);
     return true;
   };
 
-  const handleSendReset = () => {
-    if (validate()) {
-      // Backend not connected yet - validation check only
-      // Do not send real email or show fake email sent message per specification
+  const handleSendReset = async () => {
+    if (submitting || !validate()) return;
+
+    setSubmitting(true);
+
+    try {
+      await resetPassword(email.trim());
+
+      Alert.alert(
+        'Reset Request Submitted',
+        'If your account is registered, you should receive password-reset instructions by email. The password-reset link and recovery screen still need to be configured.',
+        [{ text: 'OK', onPress: () => router.replace('/login') }]
+      );
+    } catch (err) {
+      Alert.alert(
+        'Request Failed',
+        err?.message || 'Unable to send the password-reset email. Please try again.'
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -50,7 +81,6 @@ export default function ForgotPasswordScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header */}
           <View style={styles.header}>
             <View style={styles.iconCircle}>
               <AppText style={styles.keyEmoji}>🔑</AppText>
@@ -63,7 +93,6 @@ export default function ForgotPasswordScreen() {
             </AppText>
           </View>
 
-          {/* Form */}
           <View style={styles.form}>
             <AppInput
               label="Email address"
@@ -79,7 +108,7 @@ export default function ForgotPasswordScreen() {
             />
 
             <AppButton
-              title="Send Reset Link"
+              title={submitting ? 'Sending...' : 'Send Reset Link'}
               variant="primary"
               size="lg"
               onPress={handleSendReset}
@@ -148,4 +177,3 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
-

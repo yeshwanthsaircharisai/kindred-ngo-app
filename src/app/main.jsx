@@ -5,14 +5,17 @@ import { StyleSheet, View } from 'react-native';
 import { AppScreen } from '@/components/ui';
 import { FloatingGlassBottomNav } from '@/components/ui/FloatingGlassBottomNav';
 
-import colors from '@/constants/colors';
-
 import CreatePostView from '@/components/social/CreatePostView';
+import CreatePostOptionsView from '@/components/social/CreatePostOptionsView';
+import ImageSimilarityView from '@/components/social/ImageSimilarityView';
+
 import ExploreView from '@/components/social/ExploreView';
 import HomeFeedView from '@/components/social/HomeFeedView';
 import MessagesView from '@/components/social/MessagesView';
 import ProfileView from '@/components/social/ProfileView';
 import ReelsView from '@/components/social/ReelsView';
+import EditProfileView from '@/components/social/EditProfileView';
+
 import IndividualChatScreen from './chat';
 import ActivityScreen from './notifications';
 
@@ -21,8 +24,8 @@ export default function MainAppScreen() {
   const [activeChatUser, setActiveChatUser] = useState(null);
 
   const isReels = activeTab === 'reels';
-  const isActivity = activeTab === 'activity';
   const isIndividualChat = Boolean(activeChatUser);
+  const isEditProfile = activeTab === 'editProfile';
 
   return (
     <AppScreen
@@ -42,9 +45,32 @@ export default function MainAppScreen() {
           <>
             {activeTab === 'home' && (
               <HomeFeedView
-                onNavigateCreate={() => setActiveTab('create')}
+                onNavigateCreate={() => setActiveTab('createOptions')}
                 onNavigateNotifications={() => setActiveTab('activity')}
                 onNavigateActivity={() => setActiveTab('activity')}
+              />
+            )}
+
+            {activeTab === 'createOptions' && (
+              <CreatePostOptionsView
+                onBack={() => setActiveTab('home')}
+                onSelectNormalPost={() => setActiveTab('create')}
+                onSelectImageSimilarity={() =>
+                  setActiveTab('imageSimilarity')
+                }
+              />
+            )}
+
+            {activeTab === 'create' && (
+              <CreatePostView
+                onPostCreated={() => setActiveTab('home')}
+              />
+            )}
+
+            {activeTab === 'imageSimilarity' && (
+              <ImageSimilarityView
+                onBack={() => setActiveTab('createOptions')}
+                onPostCreated={() => setActiveTab('home')}
               />
             )}
 
@@ -56,24 +82,30 @@ export default function MainAppScreen() {
               />
             )}
 
-            {activeTab === 'create' && (
-              <CreatePostView
-                onPostCreated={() => setActiveTab('home')}
+            {activeTab === 'reels' && <ReelsView />}
+
+            {activeTab === 'profile' && (
+              <ProfileView
+                onEditProfile={() => setActiveTab('editProfile')}
               />
             )}
 
-            {activeTab === 'reels' && <ReelsView />}
-
-            {activeTab === 'profile' && <ProfileView />}
+            {activeTab === 'editProfile' && (
+              <EditProfileView
+                onBack={() => setActiveTab('profile')}
+              />
+            )}
 
             {activeTab === 'activity' && (
-              <ActivityScreen onBack={() => setActiveTab('home')} />
+              <ActivityScreen
+                onBack={() => setActiveTab('home')}
+              />
             )}
           </>
         )}
       </View>
 
-      {!isIndividualChat && (
+      {!isIndividualChat && !isEditProfile && (
         <FloatingGlassBottomNav
           activeTab={activeTab}
           onSelectTab={setActiveTab}
@@ -88,6 +120,7 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+
   contentContainer: {
     flex: 1,
   },

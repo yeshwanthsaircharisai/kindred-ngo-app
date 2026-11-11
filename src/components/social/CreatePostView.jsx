@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -6,25 +7,40 @@ import {
   TextInput,
   Pressable,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import colors from '@/constants/colors';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { AppText } from '@/components/ui';
 import { useSocialApp } from '@/context/SocialAppContext';
 
-export default function CreatePostView({ onPostCreated }) {
-  const { addPost } = useSocialApp();
+const DEFAULT_IMAGE =
+  'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=1080&auto=format&fit=crop&q=80';
 
-  const [caption, setCaption] = useState('Together for a greener planet 💚');
-  const [selectedImage, setSelectedImage] = useState(
-    'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=1080&auto=format&fit=crop&q=80'
+export default function CreatePostView({ onPostCreated }) {
+  const { addPost, uploadPostImage } = useSocialApp();
+
+  const [caption, setCaption] = useState(
+    'Together for a greener planet 💚'
   );
-  const [activeMediaType, setActiveMediaType] = useState('image'); // 'image' | 'video'
+  const [selectedImage, setSelectedImage] = useState(DEFAULT_IMAGE);
+  const [activeMediaType, setActiveMediaType] = useState('image');
+  const [isPosting, setIsPosting] = useState(false);
 
   const handlePickLocalImage = async () => {
     try {
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          'Permission required',
+          'Please allow gallery access to select a photo.'
+        );
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
@@ -32,11 +48,15 @@ export default function CreatePostView({ onPostCreated }) {
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
+      if (!result.canceled && result.assets?.length > 0) {
         setSelectedImage(result.assets[0].uri);
+        setActiveMediaType('image');
       }
-    } catch (e) {
-      // Permission not granted or canceled
+    } catch (error) {
+      Alert.alert(
+        'Image selection failed',
+        error.message || 'Could not open your gallery.'
+      );
     }
   };
 
@@ -44,32 +64,65 @@ export default function CreatePostView({ onPostCreated }) {
     setSelectedImage(null);
   };
 
-  const handleCreatePost = () => {
+  const handleCreatePost = async () => {
+    if (isPosting) return;
+
     if (!caption.trim()) {
       Alert.alert('Required', 'Please enter a caption for your post.');
       return;
     }
 
-    addPost({
-      caption: caption.trim(),
-      image: selectedImage || 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=1080&auto=format&fit=crop&q=80',
-      location: 'Bangalore Urban Forestry Drive',
-      category: 'Environment',
-    });
+    setIsPosting(true);
 
-    if (onPostCreated) {
-      onPostCreated();
+    try {
+      let uploadedImageUrl = null;
+
+      // Upload only a newly selected local image.
+      if (
+        selectedImage &&
+        !selectedImage.startsWith('http://') &&
+        !selectedImage.startsWith('https://')
+      ) {
+        uploadedImageUrl = await uploadPostImage(selectedImage);
+      } else if (selectedImage) {
+        uploadedImageUrl = selectedImage;
+      }
+
+      await addPost({
+        caption: caption.trim(),
+        image: uploadedImageUrl,
+        location: null,
+        category: 'Volunteering',
+      });
+
+      Alert.alert('Success', 'Your post has been published!', [
+        {
+          text: 'OK',
+          onPress: () => {
+            if (onPostCreated) onPostCreated();
+          },
+        },
+      ]);
+    } catch (error) {
+      console.error('[CreatePost] Failed:', error);
+
+      Alert.alert(
+        'Post failed',
+        error.message || 'Something went wrong while creating your post.'
+      );
+    } finally {
+      setIsPosting(false);
     }
   };
 
   return (
     <View style={styles.container}>
-      {/* Header matching Reference Screen 5 */}
       <View style={styles.header}>
         <Pressable
           onPress={onPostCreated}
           hitSlop={10}
           style={styles.backBtn}
+          disabled={isPosting}
         >
           <Feather name="arrow-left" size={24} color="#18241D" />
         </Pressable>
@@ -78,10 +131,18 @@ export default function CreatePostView({ onPostCreated }) {
 
         <Pressable
           onPress={handleCreatePost}
-          style={styles.postBtn}
+          style={[
+            styles.postBtn,
+            isPosting && styles.postBtnDisabled,
+          ]}
           hitSlop={6}
+          disabled={isPosting}
         >
-          <AppText style={styles.postBtnText}>Post</AppText>
+          {isPosting ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <AppText style={styles.postBtnText}>Post</AppText>
+          )}
         </Pressable>
       </View>
 
@@ -90,7 +151,6 @@ export default function CreatePostView({ onPostCreated }) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Large Media Preview Card with Close 'X' button */}
         {selectedImage ? (
           <View style={styles.mediaContainer}>
             <Image
@@ -98,22 +158,33 @@ export default function CreatePostView({ onPostCreated }) {
               style={styles.previewImage}
               contentFit="cover"
             />
+
             <Pressable
               onPress={handleClearImage}
               style={styles.closeBtn}
               hitSlop={6}
+              disabled={isPosting}
             >
-              <Ionicons name="close-circle" size={26} color="#FFFFFF" />
+              <Ionicons
+                name="close-circle"
+                size={26}
+                color="#FFFFFF"
+              />
             </Pressable>
           </View>
         ) : (
-          <Pressable onPress={handlePickLocalImage} style={styles.emptyMediaBox}>
+          <Pressable
+            onPress={handlePickLocalImage}
+            style={styles.emptyMediaBox}
+            disabled={isPosting}
+          >
             <Feather name="image" size={36} color="#8D9B93" />
-            <AppText style={styles.emptyMediaText}>Tap to choose photo</AppText>
+            <AppText style={styles.emptyMediaText}>
+              Tap to choose photo
+            </AppText>
           </Pressable>
         )}
 
-        {/* Image / Video Buttons Row */}
         <View style={styles.mediaTypesRow}>
           <Pressable
             onPress={() => {
@@ -122,26 +193,49 @@ export default function CreatePostView({ onPostCreated }) {
             }}
             style={[
               styles.mediaTypeBtn,
-              activeMediaType === 'image' && styles.mediaTypeBtnActive,
+              activeMediaType === 'image' &&
+                styles.mediaTypeBtnActive,
             ]}
+            disabled={isPosting}
           >
-            <Feather name="image" size={17} color="#08734B" style={{ marginRight: 6 }} />
-            <AppText style={styles.mediaTypeBtnText}>Image</AppText>
+            <Feather
+              name="image"
+              size={17}
+              color="#08734B"
+              style={{ marginRight: 6 }}
+            />
+            <AppText style={styles.mediaTypeBtnText}>
+              Image
+            </AppText>
           </Pressable>
 
           <Pressable
-            onPress={() => setActiveMediaType('video')}
+            onPress={() => {
+              setActiveMediaType('video');
+              Alert.alert(
+                'Coming soon',
+                'Video posting will be available in a future update.'
+              );
+            }}
             style={[
               styles.mediaTypeBtn,
-              activeMediaType === 'video' && styles.mediaTypeBtnActive,
+              activeMediaType === 'video' &&
+                styles.mediaTypeBtnActive,
             ]}
+            disabled={isPosting}
           >
-            <Ionicons name="videocam-outline" size={19} color="#08734B" style={{ marginRight: 6 }} />
-            <AppText style={styles.mediaTypeBtnText}>Video</AppText>
+            <Ionicons
+              name="videocam-outline"
+              size={19}
+              color="#08734B"
+              style={{ marginRight: 6 }}
+            />
+            <AppText style={styles.mediaTypeBtnText}>
+              Video
+            </AppText>
           </Pressable>
         </View>
 
-        {/* Caption Input with character counter on the right */}
         <View style={styles.captionWrapper}>
           <TextInput
             value={caption}
@@ -151,22 +245,43 @@ export default function CreatePostView({ onPostCreated }) {
             multiline
             maxLength={220}
             style={styles.captionInput}
+            editable={!isPosting}
           />
+
           <AppText style={styles.charCount}>
             {caption.length}/220
           </AppText>
         </View>
 
-        {/* Add Location Row */}
-        <Pressable style={styles.locationRow}>
+        <Pressable
+          style={styles.locationRow}
+          disabled={isPosting}
+          onPress={() =>
+            Alert.alert(
+              'Location',
+              'Location tagging will be added in a future update.'
+            )
+          }
+        >
           <View style={styles.locationLeft}>
-            <Ionicons name="location-outline" size={20} color="#55665E" style={{ marginRight: 8 }} />
-            <AppText style={styles.locationText}>Add Location</AppText>
+            <Ionicons
+              name="location-outline"
+              size={20}
+              color="#55665E"
+              style={{ marginRight: 8 }}
+            />
+            <AppText style={styles.locationText}>
+              Add Location
+            </AppText>
           </View>
-          <Feather name="chevron-right" size={20} color="#8D9B93" />
+
+          <Feather
+            name="chevron-right"
+            size={20}
+            color="#8D9B93"
+          />
         </Pressable>
 
-        {/* Bottom space for floating navigation */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </View>
@@ -200,6 +315,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 7,
     borderRadius: 18,
+    minWidth: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postBtnDisabled: {
+    opacity: 0.7,
   },
   postBtnText: {
     color: '#FFFFFF',
@@ -308,4 +429,3 @@ const styles = StyleSheet.create({
     height: 100,
   },
 });
-
